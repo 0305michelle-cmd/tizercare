@@ -1,0 +1,1329 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="theme-color" content="#0f766e" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="TirzeCare" />
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230f766e'/%3E%3Ctext x='50' y='66' font-size='52' text-anchor='middle'%3E%F0%9F%92%89%3C/text%3E%3C/svg%3E" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%230f766e'/%3E%3Ctext x='50' y='66' font-size='52' text-anchor='middle'%3E%F0%9F%92%89%3C/text%3E%3C/svg%3E" />
+  <title>TirzeCare — Monitoramento de Tirzepatida</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    * { -webkit-tap-highlight-color: transparent; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #0f172a; }
+    .tab-active { color: #0f766e; border-bottom: 2px solid #0f766e; font-weight: 600; }
+    .spot-btn { transition: all 0.2s ease; }
+    .spot-btn.selected { transform: scale(1.04); box-shadow: 0 0 0 3px #99f6e4; }
+  </style>
+</head>
+<body class="pb-24">
+  <!-- Header -->
+  <header class="bg-teal-700 text-white px-4 py-4 shadow-md sticky top-0 z-20">
+    <div class="max-w-md mx-auto flex items-center justify-between">
+      <div>
+        <h1 class="text-lg font-bold tracking-tight flex items-center gap-2">
+          💉 TirzeCare
+        </h1>
+        <p class="text-xs text-teal-100 font-medium" id="header-patient">Frasco padrão: 15 mg / 0,5 mL</p>
+        <p class="text-[11px] text-teal-200" id="header-subtitle">15 mg / 0,5 mL • Ciclo 7 dias</p>
+      </div>
+      <button onclick="openSettings()" class="bg-teal-800 hover:bg-teal-900 text-xs px-3 py-1.5 rounded-full font-medium transition">
+        ⚙️ Perfil & Ajustes
+      </button>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="bg-white border-b border-slate-200 sticky top-[76px] z-10">
+    <div class="max-w-md mx-auto grid grid-cols-5 text-center text-[11px] text-slate-500">
+      <button onclick="switchTab('painel')" id="tab-painel" class="py-3 tab-active">Painel</button>
+      <button onclick="switchTab('registrar')" id="tab-registrar" class="py-3">+ Aplicar</button>
+      <button onclick="switchTab('evolucao')" id="tab-evolucao" class="py-3">Evolução</button>
+      <button onclick="switchTab('calculadora')" id="tab-calculadora" class="py-3">Seringa</button>
+      <button onclick="switchTab('historico')" id="tab-historico" class="py-3">Histórico</button>
+    </div>
+  </nav>
+
+  <main class="max-w-md mx-auto px-4 pt-5 space-y-5">
+
+    <!-- Card Boas-vindas (Primeiro Acesso) -->
+    <div id="welcome-card" class="hidden bg-white rounded-2xl p-5 shadow-md border-2 border-teal-500 space-y-3">
+      <div class="flex justify-between items-center">
+        <h2 class="text-base font-bold text-teal-800">👋 Bem-vindo(a) ao TirzeCare</h2>
+        <button onclick="dismissWelcome()" class="text-xs text-slate-400 hover:text-slate-600">Pular</button>
+      </div>
+      <p class="text-xs text-slate-600">Preencha seus dados para personalizar o acompanhamento:</p>
+      <div class="grid grid-cols-3 gap-2">
+        <div class="col-span-2">
+          <label class="block text-[11px] font-medium text-slate-600 mb-1">Seu Nome</label>
+          <input type="text" id="welcome-name" placeholder="Ex: Maria" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-teal-600" />
+        </div>
+        <div>
+          <label class="block text-[11px] font-medium text-slate-600 mb-1">Idade</label>
+          <input type="number" id="welcome-age" placeholder="Ex: 35" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-teal-600" />
+        </div>
+      </div>
+      <button onclick="saveWelcomeProfile()" class="w-full bg-teal-700 hover:bg-teal-800 text-white font-semibold py-2.5 rounded-xl text-xs">
+        Salvar Perfil
+      </button>
+    </div>
+
+    <!-- ABA 1: PAINEL -->
+    <section id="view-painel" class="space-y-4">
+      <!-- Card Próxima Dose -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100">
+        <div class="flex justify-between items-start">
+          <div>
+            <span class="text-xs font-semibold uppercase tracking-wider text-teal-700 bg-teal-50 px-2.5 py-1 rounded-full">Próxima Aplicação</span>
+            <h2 class="text-2xl font-bold mt-2 text-slate-800" id="next-dose-countdown">Nenhuma registrada</h2>
+            <p class="text-xs text-slate-500 mt-0.5" id="next-dose-date">Registre sua primeira dose ou lance doses anteriores.</p>
+          </div>
+          <div class="text-right">
+            <span class="text-xs text-slate-400">Ciclo</span>
+            <p class="text-sm font-bold text-slate-700" id="cycle-days-label">7 dias</p>
+          </div>
+        </div>
+
+        <!-- Barra de Progresso -->
+        <div class="mt-4">
+          <div class="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+            <div id="cycle-progress" class="bg-teal-600 h-2.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2 mt-4">
+          <button onclick="openApplyMode('today')" class="bg-teal-700 hover:bg-teal-800 text-white font-semibold py-2.5 rounded-xl text-xs shadow-sm transition">
+            + Dose de Hoje
+          </button>
+          <button onclick="openApplyMode('past')" class="bg-teal-50 hover:bg-teal-100 text-teal-800 font-semibold py-2.5 rounded-xl text-xs border border-teal-200 transition">
+            ⏪ Dose Anterior
+          </button>
+        </div>
+      </div>
+
+      <!-- Sugestão de Rodízio -->
+      <div class="bg-gradient-to-br from-teal-50 to-emerald-50 rounded-2xl p-4 border border-teal-100">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-xs font-semibold text-teal-800 uppercase">Sugestão de Rodízio</p>
+            <h3 class="text-base font-bold text-slate-800 mt-0.5" id="suggested-spot">Abdômen — Direito</h3>
+            <p class="text-xs text-slate-600 mt-1" id="last-spot-info">Evite aplicar no mesmo ponto em semanas seguidas.</p>
+          </div>
+          <span class="text-2xl">🎯</span>
+        </div>
+      </div>
+
+      <!-- Resumo Rápido -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+          <p class="text-xs text-slate-400">Última Dose</p>
+          <p class="text-lg font-bold text-slate-800 mt-1" id="stat-last-dose">—</p>
+          <p class="text-[11px] text-teal-700 mt-0.5" id="stat-last-ui">—</p>
+        </div>
+        <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+          <p class="text-xs text-slate-400">Peso Atual / Variação</p>
+          <p class="text-lg font-bold text-slate-800 mt-1" id="stat-weight">—</p>
+          <p class="text-[11px] text-slate-500 mt-0.5" id="stat-weight-diff">Sem registros</p>
+        </div>
+      </div>
+
+      <!-- Mini Card de Medidas Atuais -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100">
+        <div class="flex items-center justify-between mb-2">
+          <div>
+            <p class="text-xs font-semibold text-slate-700">📏 Medidas Corporais Recentes</p>
+            <p class="text-[11px] text-slate-400" id="panel-measures-date">Nenhuma medida registrada</p>
+          </div>
+          <button onclick="switchTab('evolucao')" class="text-xs font-semibold text-teal-700 hover:underline">
+            Ver gráfico →
+          </button>
+        </div>
+        <div class="grid grid-cols-4 gap-2 text-center pt-1" id="panel-measures-grid">
+          <div class="bg-slate-50 rounded-xl p-2">
+            <span class="text-[10px] text-slate-400 block">Cintura</span>
+            <strong class="text-xs text-slate-800" id="m-waist-latest">—</strong>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-2">
+            <span class="text-[10px] text-slate-400 block">Abdômen</span>
+            <strong class="text-xs text-slate-800" id="m-abdomen-latest">—</strong>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-2">
+            <span class="text-[10px] text-slate-400 block">Quadril</span>
+            <strong class="text-xs text-slate-800" id="m-hip-latest">—</strong>
+          </div>
+          <div class="bg-slate-50 rounded-xl p-2">
+            <span class="text-[10px] text-slate-400 block">Braço</span>
+            <strong class="text-xs text-slate-800" id="m-arm-latest">—</strong>
+          </div>
+        </div>
+      </div>
+
+      <!-- Estoque de Frascos -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex items-center justify-between">
+        <div>
+          <p class="text-xs text-slate-400">Frascos em Estoque</p>
+          <p class="text-base font-bold text-slate-800" id="vial-stock-display">1 frasco(s)</p>
+        </div>
+        <div class="flex items-center gap-2">
+          <button onclick="updateStock(-1)" class="w-8 h-8 rounded-lg bg-slate-100 font-bold text-slate-700 hover:bg-slate-200">-</button>
+          <button onclick="updateStock(1)" class="w-8 h-8 rounded-lg bg-teal-100 font-bold text-teal-800 hover:bg-teal-200">+</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABA 2: REGISTRAR APLICAÇÃO (HOJE OU ANTERIOR) -->
+    <section id="view-registrar" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-base font-bold text-slate-800" id="form-title">Registrar Aplicação</h2>
+          <span id="past-badge" class="hidden text-[11px] font-semibold bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full">Modo Retroativo</span>
+        </div>
+
+        <!-- Seletor Hoje vs Anterior -->
+        <div class="grid grid-cols-2 bg-slate-100 p-1 rounded-xl text-xs font-medium">
+          <button type="button" id="mode-today-btn" onclick="setApplyMode('today')" class="py-2 rounded-lg bg-white text-teal-800 shadow-sm transition">
+            Aplicação de Hoje
+          </button>
+          <button type="button" id="mode-past-btn" onclick="setApplyMode('past')" class="py-2 rounded-lg text-slate-600 transition">
+            Aplicação Anterior
+          </button>
+        </div>
+
+        <!-- Atalhos Rápidos de Datas Passadas -->
+        <div>
+          <label class="block text-[11px] font-medium text-slate-500 mb-1.5">Atalhos rápidos de data:</label>
+          <div class="flex flex-wrap gap-1.5 text-[11px]">
+            <button type="button" onclick="setDaysAgo(0)" class="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-teal-50 text-slate-700">Hoje</button>
+            <button type="button" onclick="setDaysAgo(1)" class="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-teal-50 text-slate-700">Ontem</button>
+            <button type="button" onclick="setDaysAgo(7)" class="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-teal-50 text-slate-700">Há 7 dias</button>
+            <button type="button" onclick="setDaysAgo(14)" class="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-teal-50 text-slate-700">Há 14 dias</button>
+            <button type="button" onclick="setDaysAgo(21)" class="px-2.5 py-1 rounded-lg border border-slate-200 hover:bg-teal-50 text-slate-700">Há 21 dias</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Data e Hora</label>
+            <input type="datetime-local" id="reg-datetime" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-teal-600" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Dose (mg)</label>
+            <select id="reg-dose" onchange="updateRegCalc()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:border-teal-600">
+              <option value="2.5">2,5 mg</option>
+              <option value="5">5,0 mg</option>
+              <option value="7.5">7,5 mg</option>
+              <option value="10">10,0 mg</option>
+              <option value="12.5">12,5 mg</option>
+              <option value="15" selected>15,0 mg</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="bg-teal-50 rounded-xl p-3 text-xs text-teal-900 flex justify-between items-center">
+          <span>Volume na seringa de 100 UI:</span>
+          <strong id="reg-calc-preview">0,50 mL (50 UI)</strong>
+        </div>
+
+        <!-- Seletor Visual de Local -->
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-2">Local da Aplicação (Rodízio)</label>
+          <div class="grid grid-cols-2 gap-2 text-xs" id="spot-grid">
+            <button type="button" onclick="selectSpot('Abdômen — Direito')" data-spot="Abdômen — Direito" class="spot-btn selected border border-teal-600 bg-teal-50 text-teal-900 font-medium py-2.5 px-3 rounded-xl text-left">
+              🟢 Abdômen Direito
+            </button>
+            <button type="button" onclick="selectSpot('Abdômen — Esquerdo')" data-spot="Abdômen — Esquerdo" class="spot-btn border border-slate-200 bg-white text-slate-700 py-2.5 px-3 rounded-xl text-left">
+              ⚪ Abdômen Esquerdo
+            </button>
+            <button type="button" onclick="selectSpot('Coxa — Direita')" data-spot="Coxa — Direita" class="spot-btn border border-slate-200 bg-white text-slate-700 py-2.5 px-3 rounded-xl text-left">
+              ⚪ Coxa Direita
+            </button>
+            <button type="button" onclick="selectSpot('Coxa — Esquerda')" data-spot="Coxa — Esquerda" class="spot-btn border border-slate-200 bg-white text-slate-700 py-2.5 px-3 rounded-xl text-left">
+              ⚪ Coxa Esquerda
+            </button>
+            <button type="button" onclick="selectSpot('Braço — Direito')" data-spot="Braço — Direito" class="spot-btn border border-slate-200 bg-white text-slate-700 py-2.5 px-3 rounded-xl text-left">
+              ⚪ Braço Direito
+            </button>
+            <button type="button" onclick="selectSpot('Braço — Esquerdo')" data-spot="Braço — Esquerdo" class="spot-btn border border-slate-200 bg-white text-slate-700 py-2.5 px-3 rounded-xl text-left">
+              ⚪ Braço Esquerdo
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Peso no Dia (kg) <span class="text-slate-400">(opcional)</span></label>
+            <input type="number" step="0.1" id="reg-weight" placeholder="Ex: 78.5" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-teal-600" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Sintomas / Efeitos</label>
+            <select id="reg-symptom" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white focus:outline-none focus:border-teal-600">
+              <option value="Nenhum">Nenhum sintoma</option>
+              <option value="Saciedade forte">Saciedade forte</option>
+              <option value="Náusea leve">Náusea leve</option>
+              <option value="Refluxo / Azia">Refluxo / Azia</option>
+              <option value="Fadiga">Fadiga</option>
+              <option value="Constipação">Constipação</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Medidas Opcionais junto à Aplicação -->
+        <div class="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-2">
+          <p class="text-[11px] font-semibold text-slate-600">📏 Medidas Corporais do Dia (cm — opcional)</p>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <label class="block text-[10px] text-slate-500 mb-0.5">Cintura (cm)</label>
+              <input type="number" step="0.1" id="reg-waist" placeholder="Ex: 82" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs bg-white" />
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-500 mb-0.5">Abdômen (cm)</label>
+              <input type="number" step="0.1" id="reg-abdomen" placeholder="Ex: 94" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs bg-white" />
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-500 mb-0.5">Quadril (cm)</label>
+              <input type="number" step="0.1" id="reg-hip" placeholder="Ex: 104" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs bg-white" />
+            </div>
+            <div>
+              <label class="block text-[10px] text-slate-500 mb-0.5">Braço (cm)</label>
+              <input type="number" step="0.1" id="reg-arm" placeholder="Ex: 31" class="w-full border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs bg-white" />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Observações</label>
+          <input type="text" id="reg-notes" placeholder="Ex: Lote do frasco, reação, etc." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-teal-600" />
+        </div>
+
+        <div id="deduct-stock-box" class="hidden flex items-center gap-2 text-xs text-slate-600 bg-slate-50 p-2.5 rounded-xl">
+          <input type="checkbox" id="reg-deduct-stock" class="rounded text-teal-600" />
+          <label for="reg-deduct-stock">Descontar esta dose antiga do estoque atual</label>
+        </div>
+
+        <div class="space-y-2 pt-1">
+          <button onclick="saveApplication(false)" class="w-full bg-teal-700 hover:bg-teal-800 text-white font-semibold py-3 rounded-xl text-sm shadow transition">
+            Salvar Aplicação
+          </button>
+          <button onclick="saveApplication(true)" class="w-full bg-teal-50 hover:bg-teal-100 text-teal-800 font-semibold py-2.5 rounded-xl text-xs border border-teal-200 transition">
+            + Salvar e Adicionar Outra
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABA 3: EVOLUÇÃO (PESO SEMANAL, GRÁFICO E MEDIDAS) -->
+    <section id="view-evolucao" class="hidden space-y-4">
+      <!-- Form Adicionar Peso Semanal e Medidas -->
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-3">
+        <div class="flex items-center justify-between">
+          <h2 class="text-base font-bold text-slate-800">⚖️📏 Peso Semanal & Medidas</h2>
+          <span class="text-[11px] text-teal-700 bg-teal-50 px-2 py-0.5 rounded-full font-medium">Acompanhamento</span>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Data da Avaliação</label>
+            <input type="date" id="evo-date" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-teal-600" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Peso da Semana (kg)</label>
+            <input type="number" step="0.1" id="evo-weight" placeholder="Ex: 77.4" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-teal-600" />
+          </div>
+        </div>
+
+        <div class="pt-1">
+          <p class="text-xs font-medium text-slate-600 mb-2">Medidas Corporais (cm)</p>
+          <div class="grid grid-cols-2 gap-2.5">
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-0.5">Cintura (cm)</label>
+              <input type="number" step="0.1" id="evo-waist" placeholder="Ex: 80.5" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-0.5">Abdômen (cm)</label>
+              <input type="number" step="0.1" id="evo-abdomen" placeholder="Ex: 92.0" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-0.5">Quadril (cm)</label>
+              <input type="number" step="0.1" id="evo-hip" placeholder="Ex: 102.5" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs" />
+            </div>
+            <div>
+              <label class="block text-[11px] text-slate-500 mb-0.5">Braço (cm)</label>
+              <input type="number" step="0.1" id="evo-arm" placeholder="Ex: 30.0" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs" />
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Nota da Semana (opcional)</label>
+          <input type="text" id="evo-notes" placeholder="Ex: Semana 3, redução de inchaço..." class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs" />
+        </div>
+
+        <button onclick="saveCheckIn()" class="w-full bg-teal-700 hover:bg-teal-800 text-white font-semibold py-2.5 rounded-xl text-sm shadow transition">
+          Salvar Peso e Medidas
+        </button>
+      </div>
+
+      <!-- Gráfico de Evolução de Peso -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-2">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-slate-800">📈 Gráfico de Peso (kg)</h3>
+          <span class="text-[11px] text-slate-500" id="weight-chart-summary">—</span>
+        </div>
+        <div class="relative h-52 w-full">
+          <canvas id="weightChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Gráfico de Evolução de Medidas -->
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-2">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-bold text-slate-800">📐 Gráfico de Medidas (cm)</h3>
+          <span class="text-[11px] text-slate-500" id="measures-chart-summary">—</span>
+        </div>
+        <div class="relative h-52 w-full">
+          <canvas id="measuresChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Histórico de Pesos e Medidas -->
+      <div class="space-y-2.5">
+        <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500 px-1">Registros de Peso e Medidas</h3>
+        <div id="checkin-list" class="space-y-2.5"></div>
+      </div>
+    </section>
+
+    <!-- ABA 4: CALCULADORA DE SERINGA -->
+    <section id="view-calculadora" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-100 space-y-4">
+        <div>
+          <h2 class="text-base font-bold text-slate-800">Calculadora de Seringa (100 UI)</h2>
+          <p class="text-xs text-slate-500">Converta a dose em mg para unidades na seringa de insulina.</p>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Mg no Frasco</label>
+            <input type="number" step="0.5" id="calc-vial-mg" value="15" oninput="calculateSyringe()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Volume Total (mL)</label>
+            <input type="number" step="0.1" id="calc-vial-ml" value="0.5" oninput="calculateSyringe()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Dose Desejada (mg)</label>
+          <div class="grid grid-cols-3 gap-2 mb-2">
+            <button type="button" onclick="setCalcDose(2.5)" class="py-1.5 text-xs rounded-lg border border-slate-200 hover:bg-teal-50">2,5 mg</button>
+            <button type="button" onclick="setCalcDose(5)" class="py-1.5 text-xs rounded-lg border border-slate-200 hover:bg-teal-50">5,0 mg</button>
+            <button type="button" onclick="setCalcDose(7.5)" class="py-1.5 text-xs rounded-lg border border-slate-200 hover:bg-teal-50">7,5 mg</button>
+            <button type="button" onclick="setCalcDose(10)" class="py-1.5 text-xs rounded-lg border border-slate-200 hover:bg-teal-50">10 mg</button>
+            <button type="button" onclick="setCalcDose(12.5)" class="py-1.5 text-xs rounded-lg border border-slate-200 hover:bg-teal-50">12,5 mg</button>
+            <button type="button" onclick="setCalcDose(15)" class="py-1.5 text-xs rounded-lg border border-slate-200 hover:bg-teal-50">15 mg</button>
+          </div>
+          <input type="number" step="0.5" id="calc-target-mg" value="15" oninput="calculateSyringe()" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm font-semibold" />
+        </div>
+
+        <!-- Resultado Visual -->
+        <div class="bg-slate-50 rounded-2xl p-4 border border-slate-200 text-center space-y-2">
+          <p class="text-xs text-slate-500">Aspirar na seringa de 100 UI:</p>
+          <div class="flex justify-center items-baseline gap-3">
+            <span class="text-3xl font-extrabold text-teal-700" id="res-ui">50 UI</span>
+            <span class="text-sm font-semibold text-slate-600" id="res-ml">(0,50 mL)</span>
+          </div>
+          <p class="text-xs text-slate-500" id="res-doses-per-vial">Rende 1 dose completa por frasco</p>
+
+          <!-- Desenho da Seringa -->
+          <div class="pt-3">
+            <div class="relative w-full h-8 bg-white border-2 border-slate-300 rounded-lg overflow-hidden flex items-center">
+              <div id="syringe-fill" class="h-full bg-teal-400/70 transition-all duration-300" style="width: 50%"></div>
+              <div class="absolute inset-0 flex justify-between px-2 items-center text-[9px] font-mono text-slate-600 pointer-events-none">
+                <span>0</span><span>20</span><span>40</span><span>60</span><span>80</span><span>100 UI</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ABA 5: HISTÓRICO E BACKUP -->
+    <section id="view-historico" class="hidden space-y-4">
+      <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 space-y-3">
+        <div class="flex justify-between items-center">
+          <div>
+            <h2 class="text-base font-bold text-slate-800">Histórico de Aplicações</h2>
+            <p class="text-xs text-slate-500" id="history-count">0 registros salvos</p>
+          </div>
+          <button onclick="openApplyMode('past')" class="text-xs bg-teal-700 hover:bg-teal-800 text-white px-3 py-1.5 rounded-lg font-medium">
+            + Dose Anterior
+          </button>
+        </div>
+        <div class="flex flex-wrap gap-2 pt-1 border-t border-slate-100">
+          <button onclick="exportData()" class="flex-1 min-w-[90px] text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg font-medium">
+            Exportar Backup
+          </button>
+          <label class="flex-1 min-w-[90px] text-center text-xs bg-teal-50 hover:bg-teal-100 text-teal-800 py-2 rounded-lg font-medium cursor-pointer">
+            Importar Backup
+            <input type="file" accept=".json" onchange="importData(event)" class="hidden" />
+          </label>
+          <button onclick="resetAllAppData()" class="w-full text-[11px] bg-rose-50 hover:bg-rose-100 text-rose-700 py-1.5 rounded-lg font-medium border border-rose-200">
+            🧹 Limpar Todos os Dados (Modelo em Branco)
+          </button>
+        </div>
+      </div>
+
+      <div id="history-list" class="space-y-3"></div>
+    </section>
+  </main>
+
+  <!-- Modal de Configurações & Perfil -->
+  <div id="settings-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-4 max-h-[90vh] overflow-y-auto">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-slate-800">Perfil & Configurações</h3>
+        <button onclick="closeSettings()" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+      </div>
+
+      <div class="bg-slate-50 p-3 rounded-xl space-y-3 border border-slate-100">
+        <p class="text-xs font-bold text-teal-800 uppercase">Dados do Paciente</p>
+        <div class="grid grid-cols-3 gap-2">
+          <div class="col-span-2">
+            <label class="block text-xs font-medium text-slate-600 mb-1">Nome</label>
+            <input type="text" id="set-patient-name" placeholder="Seu nome" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Idade</label>
+            <input type="number" id="set-patient-age" placeholder="Anos" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm bg-white" />
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-3">
+        <p class="text-xs font-bold text-slate-500 uppercase">Parâmetros do Frasco</p>
+        <div class="grid grid-cols-2 gap-2">
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Concentração (mg)</label>
+            <input type="number" step="0.5" id="set-vial-mg" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" />
+          </div>
+          <div>
+            <label class="block text-xs font-medium text-slate-600 mb-1">Volume (mL)</label>
+            <input type="number" step="0.1" id="set-vial-ml" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Intervalo entre Doses (dias)</label>
+          <input type="number" id="set-cycle-days" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm" />
+        </div>
+      </div>
+
+      <button onclick="saveSettings()" class="w-full bg-teal-700 text-white font-semibold py-2.5 rounded-xl text-sm">
+        Salvar Alterações
+      </button>
+    </div>
+  </div>
+
+  <!-- Modal de Edição de Registro de Aplicação -->
+  <div id="edit-modal" class="fixed inset-0 bg-black/50 hidden items-center justify-center z-50 p-4">
+    <div class="bg-white rounded-2xl max-w-sm w-full p-5 space-y-3">
+      <div class="flex justify-between items-center">
+        <h3 class="font-bold text-slate-800">Editar Aplicação</h3>
+        <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+      </div>
+      <input type="hidden" id="edit-id" />
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Data e Hora</label>
+        <input type="datetime-local" id="edit-datetime" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs" />
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Dose (mg)</label>
+          <select id="edit-dose" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white">
+            <option value="2.5">2,5 mg</option>
+            <option value="5">5,0 mg</option>
+            <option value="7.5">7,5 mg</option>
+            <option value="10">10,0 mg</option>
+            <option value="12.5">12,5 mg</option>
+            <option value="15">15,0 mg</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-xs font-medium text-slate-600 mb-1">Peso (kg)</label>
+          <input type="number" step="0.1" id="edit-weight" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs" />
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Local</label>
+        <select id="edit-spot" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white">
+          <option value="Abdômen — Direito">Abdômen — Direito</option>
+          <option value="Abdômen — Esquerdo">Abdômen — Esquerdo</option>
+          <option value="Coxa — Direita">Coxa — Direita</option>
+          <option value="Coxa — Esquerda">Coxa — Esquerda</option>
+          <option value="Braço — Direito">Braço — Direito</option>
+          <option value="Braço — Esquerdo">Braço — Esquerdo</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Sintomas</label>
+        <select id="edit-symptom" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs bg-white">
+          <option value="Nenhum">Nenhum sintoma</option>
+          <option value="Saciedade forte">Saciedade forte</option>
+          <option value="Náusea leve">Náusea leve</option>
+          <option value="Refluxo / Azia">Refluxo / Azia</option>
+          <option value="Fadiga">Fadiga</option>
+          <option value="Constipação">Constipação</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-slate-600 mb-1">Observações</label>
+        <input type="text" id="edit-notes" class="w-full border border-slate-200 rounded-xl px-3 py-2 text-xs" />
+      </div>
+      <button onclick="saveEditRecord()" class="w-full bg-teal-700 text-white font-semibold py-2.5 rounded-xl text-sm">
+        Atualizar Registro
+      </button>
+    </div>
+  </div>
+
+  <script>
+    const SPOTS = [
+      'Abdômen — Direito',
+      'Abdômen — Esquerdo',
+      'Coxa — Direita',
+      'Coxa — Esquerda',
+      'Braço — Direito',
+      'Braço — Esquerdo'
+    ];
+
+    let applyMode = 'today';
+    let weightChartInstance = null;
+    let measuresChartInstance = null;
+
+    function getCleanTemplate() {
+      return {
+        profile: { name: '', age: '', welcomeDismissed: false },
+        settings: { vialMg: 15, vialMl: 0.5, cycleDays: 7 },
+        stock: 1,
+        selectedSpot: 'Abdômen — Direito',
+        records: [],
+        checkins: []
+      };
+    }
+
+    let state = getCleanTemplate();
+
+    function loadState() {
+      const saved = localStorage.getItem('tirzecare_data_v1');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          const base = getCleanTemplate();
+          state = {
+            ...base,
+            ...parsed,
+            profile: { ...base.profile, ...(parsed.profile || {}) },
+            settings: { ...base.settings, ...(parsed.settings || {}) },
+            records: Array.isArray(parsed.records) ? parsed.records : [],
+            checkins: Array.isArray(parsed.checkins) ? parsed.checkins : []
+          };
+        } catch (e) {}
+      }
+      setDefaultDateTime();
+      setDefaultEvoDate();
+      renderAll();
+    }
+
+    function saveState() {
+      localStorage.setItem('tirzecare_data_v1', JSON.stringify(state));
+      renderAll();
+    }
+
+    function resetAllAppData() {
+      if (!confirm('Apagar TODOS os dados (perfil, aplicações, pesos, medidas e estoque) para deixar o app em branco?')) return;
+      localStorage.removeItem('tirzecare_data_v1');
+      state = getCleanTemplate();
+      renderAll();
+      alert('Aplicativo limpo e pronto para compartilhar sem dados pessoais.');
+    }
+
+    function saveWelcomeProfile() {
+      state.profile.name = document.getElementById('welcome-name').value.trim();
+      state.profile.age = document.getElementById('welcome-age').value.trim();
+      state.profile.welcomeDismissed = true;
+      saveState();
+    }
+
+    function dismissWelcome() {
+      state.profile.welcomeDismissed = true;
+      saveState();
+    }
+
+    function setDefaultDateTime() {
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      document.getElementById('reg-datetime').value = now.toISOString().slice(0, 16);
+    }
+
+    function setDefaultEvoDate() {
+      const now = new Date();
+      now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+      document.getElementById('evo-date').value = now.toISOString().slice(0, 10);
+    }
+
+    function setDaysAgo(days) {
+      const dt = new Date(Date.now() - days * 86400000);
+      dt.setMinutes(dt.getMinutes() - dt.getTimezoneOffset());
+      document.getElementById('reg-datetime').value = dt.toISOString().slice(0, 16);
+      if (days > 0 && applyMode !== 'past') {
+        setApplyMode('past', false);
+      } else if (days === 0 && applyMode !== 'today') {
+        setApplyMode('today', false);
+      }
+    }
+
+    function setApplyMode(mode, updateDate = true) {
+      applyMode = mode;
+      const isPast = mode === 'past';
+
+      document.getElementById('past-badge').classList.toggle('hidden', !isPast);
+      document.getElementById('deduct-stock-box').classList.toggle('hidden', !isPast);
+      document.getElementById('form-title').innerText = isPast ? 'Registrar Aplicação Anterior' : 'Registrar Aplicação de Hoje';
+
+      const todayBtn = document.getElementById('mode-today-btn');
+      const pastBtn = document.getElementById('mode-past-btn');
+
+      if (isPast) {
+        pastBtn.className = 'py-2 rounded-lg bg-white text-amber-800 shadow-sm font-semibold transition';
+        todayBtn.className = 'py-2 rounded-lg text-slate-600 transition';
+        if (updateDate) setDaysAgo(7);
+      } else {
+        todayBtn.className = 'py-2 rounded-lg bg-white text-teal-800 shadow-sm font-semibold transition';
+        pastBtn.className = 'py-2 rounded-lg text-slate-600 transition';
+        if (updateDate) setDefaultDateTime();
+      }
+    }
+
+    function openApplyMode(mode) {
+      switchTab('registrar');
+      setApplyMode(mode, true);
+    }
+
+    function switchTab(tab) {
+      ['painel', 'registrar', 'evolucao', 'calculadora', 'historico'].forEach(t => {
+        document.getElementById('view-' + t).classList.add('hidden');
+        document.getElementById('tab-' + t).classList.remove('tab-active');
+      });
+      document.getElementById('view-' + tab).classList.remove('hidden');
+      document.getElementById('tab-' + tab).classList.add('tab-active');
+      if (tab === 'registrar') {
+        updateRegCalc();
+      }
+      if (tab === 'evolucao') {
+        setDefaultEvoDate();
+        renderCharts();
+      }
+    }
+
+    function selectSpot(spot) {
+      state.selectedSpot = spot;
+      document.querySelectorAll('.spot-btn').forEach(btn => {
+        const isSel = btn.dataset.spot === spot;
+        btn.classList.toggle('selected', isSel);
+        btn.classList.toggle('border-teal-600', isSel);
+        btn.classList.toggle('bg-teal-50', isSel);
+        btn.classList.toggle('text-teal-900', isSel);
+        btn.classList.toggle('font-medium', isSel);
+        btn.classList.toggle('border-slate-200', !isSel);
+        btn.classList.toggle('bg-white', !isSel);
+        btn.innerText = (isSel ? '🟢 ' : '⚪ ') + btn.dataset.spot.replace(' — ', ' ');
+      });
+    }
+
+    function updateRegCalc() {
+      const dose = parseFloat(document.getElementById('reg-dose').value) || 0;
+      const { vialMg, vialMl } = state.settings;
+      const ml = (dose / vialMg) * vialMl;
+      const ui = Math.round(ml * 100);
+      document.getElementById('reg-calc-preview').innerText = `${ml.toFixed(2).replace('.', ',')} mL (${ui} UI)`;
+    }
+
+    function parseNum(id) {
+      const val = document.getElementById(id).value;
+      return val !== '' && !isNaN(parseFloat(val)) ? parseFloat(val) : null;
+    }
+
+    function saveApplication(addAnother) {
+      const dt = document.getElementById('reg-datetime').value;
+      const dose = parseFloat(document.getElementById('reg-dose').value);
+      const weight = parseNum('reg-weight');
+      const waist = parseNum('reg-waist');
+      const abdomen = parseNum('reg-abdomen');
+      const hip = parseNum('reg-hip');
+      const arm = parseNum('reg-arm');
+      const symptom = document.getElementById('reg-symptom').value;
+      const notes = document.getElementById('reg-notes').value.trim();
+
+      if (!dt) return alert('Informe a data e hora da aplicação.');
+
+      const { vialMg, vialMl, cycleDays } = state.settings;
+      const ml = (dose / vialMg) * vialMl;
+      const ui = Math.round(ml * 100);
+
+      state.records.push({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        datetime: dt,
+        dose,
+        ml: Number(ml.toFixed(2)),
+        ui,
+        spot: state.selectedSpot,
+        weight,
+        symptom,
+        notes
+      });
+
+      state.records.sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
+
+      if (weight !== null || waist !== null || abdomen !== null || hip !== null || arm !== null) {
+        state.checkins.push({
+          id: Date.now() + Math.floor(Math.random() * 9999),
+          date: dt.slice(0, 10),
+          weight,
+          waist,
+          abdomen,
+          hip,
+          arm,
+          notes: notes ? `Aplicação: ${notes}` : 'Registrado na aplicação'
+        });
+        state.checkins.sort((a, b) => new Date(b.date) - new Date(a.date));
+      }
+
+      if (applyMode === 'past' && document.getElementById('reg-deduct-stock').checked) {
+        const dosesPerVial = vialMg / dose;
+        if (dosesPerVial <= 1) state.stock = Math.max(0, state.stock - 1);
+      }
+
+      const idx = SPOTS.indexOf(state.selectedSpot);
+      const nextSpot = SPOTS[(idx + 1) % SPOTS.length];
+      selectSpot(nextSpot);
+
+      ['reg-weight', 'reg-waist', 'reg-abdomen', 'reg-hip', 'reg-arm', 'reg-notes'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+      saveState();
+
+      if (addAnother) {
+        if (applyMode === 'past') {
+          const prevDt = new Date(new Date(dt).getTime() - cycleDays * 86400000);
+          prevDt.setMinutes(prevDt.getMinutes() - prevDt.getTimezoneOffset());
+          document.getElementById('reg-datetime').value = prevDt.toISOString().slice(0, 16);
+        }
+        alert('Aplicação salva! Preencha a próxima.');
+      } else {
+        switchTab('painel');
+      }
+    }
+
+    function saveCheckIn() {
+      const date = document.getElementById('evo-date').value;
+      const weight = parseNum('evo-weight');
+      const waist = parseNum('evo-waist');
+      const abdomen = parseNum('evo-abdomen');
+      const hip = parseNum('evo-hip');
+      const arm = parseNum('evo-arm');
+      const notes = document.getElementById('evo-notes').value.trim();
+
+      if (!date) return alert('Informe a data da avaliação.');
+      if (weight === null && waist === null && abdomen === null && hip === null && arm === null) {
+        return alert('Preencha pelo menos o peso ou uma medida corporal.');
+      }
+
+      state.checkins.push({
+        id: Date.now() + Math.floor(Math.random() * 1000),
+        date,
+        weight,
+        waist,
+        abdomen,
+        hip,
+        arm,
+        notes
+      });
+
+      state.checkins.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      ['evo-weight', 'evo-waist', 'evo-abdomen', 'evo-hip', 'evo-arm', 'evo-notes'].forEach(id => {
+        document.getElementById(id).value = '';
+      });
+
+      saveState();
+      alert('Peso e medidas salvos!');
+    }
+
+    function deleteCheckIn(id) {
+      if (!confirm('Excluir este registro de peso/medidas?')) return;
+      state.checkins = state.checkins.filter(c => c.id !== id);
+      saveState();
+    }
+
+    function getCombinedWeightSeries() {
+      const points = [];
+      state.checkins.forEach(c => {
+        if (c.weight !== null && c.weight !== undefined) {
+          points.push({ date: c.date, weight: c.weight, label: formatShortDate(c.date) });
+        }
+      });
+      state.records.forEach(r => {
+        if (r.weight !== null && r.weight !== undefined) {
+          const d = r.datetime.slice(0, 10);
+          const exists = points.some(p => p.date === d && p.weight === r.weight);
+          if (!exists) {
+            points.push({ date: d, weight: r.weight, label: formatShortDate(d) });
+          }
+        }
+      });
+      points.sort((a, b) => new Date(a.date) - new Date(b.date));
+      return points;
+    }
+
+    function formatShortDate(isoDate) {
+      if (!isoDate) return '';
+      const parts = isoDate.split('-');
+      if (parts.length === 3) return `${parts[2]}/${parts[1]}`;
+      return isoDate;
+    }
+
+    function renderCharts() {
+      const weightPts = getCombinedWeightSeries();
+      const wCtx = document.getElementById('weightChart').getContext('2d');
+
+      if (weightChartInstance) weightChartInstance.destroy();
+
+      if (weightPts.length > 0) {
+        const firstW = weightPts[0].weight;
+        const lastW = weightPts[weightPts.length - 1].weight;
+        const diff = (lastW - firstW).toFixed(1);
+        document.getElementById('weight-chart-summary').innerText =
+          `${String(lastW).replace('.', ',')} kg (${diff > 0 ? '+' : ''}${String(diff).replace('.', ',')} kg)`;
+      } else {
+        document.getElementById('weight-chart-summary').innerText = 'Sem dados';
+      }
+
+      weightChartInstance = new Chart(wCtx, {
+        type: 'line',
+        data: {
+          labels: weightPts.length ? weightPts.map(p => p.label) : ['Início'],
+          datasets: [{
+            label: 'Peso (kg)',
+            data: weightPts.length ? weightPts.map(p => p.weight) : [0],
+            borderColor: '#0f766e',
+            backgroundColor: 'rgba(15, 118, 110, 0.14)',
+            borderWidth: 2.5,
+            pointBackgroundColor: '#0f766e',
+            pointRadius: 4,
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { ticks: { font: { size: 10 } } },
+            x: { ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+
+      const sortedCheckins = [...state.checkins]
+        .filter(c => c.waist !== null || c.abdomen !== null || c.hip !== null || c.arm !== null)
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+      const mCtx = document.getElementById('measuresChart').getContext('2d');
+      if (measuresChartInstance) measuresChartInstance.destroy();
+
+      document.getElementById('measures-chart-summary').innerText =
+        sortedCheckins.length ? `${sortedCheckins.length} avaliação(ões)` : 'Sem medidas';
+
+      measuresChartInstance = new Chart(mCtx, {
+        type: 'line',
+        data: {
+          labels: sortedCheckins.length ? sortedCheckins.map(c => formatShortDate(c.date)) : ['Início'],
+          datasets: [
+            {
+              label: 'Cintura',
+              data: sortedCheckins.map(c => c.waist),
+              borderColor: '#0d9488',
+              backgroundColor: '#0d9488',
+              tension: 0.25,
+              spanGaps: true,
+              borderWidth: 2,
+              pointRadius: 3
+            },
+            {
+              label: 'Abdômen',
+              data: sortedCheckins.map(c => c.abdomen),
+              borderColor: '#0284c7',
+              backgroundColor: '#0284c7',
+              tension: 0.25,
+              spanGaps: true,
+              borderWidth: 2,
+              pointRadius: 3
+            },
+            {
+              label: 'Quadril',
+              data: sortedCheckins.map(c => c.hip),
+              borderColor: '#d97706',
+              backgroundColor: '#d97706',
+              tension: 0.25,
+              spanGaps: true,
+              borderWidth: 2,
+              pointRadius: 3
+            },
+            {
+              label: 'Braço',
+              data: sortedCheckins.map(c => c.arm),
+              borderColor: '#9333ea',
+              backgroundColor: '#9333ea',
+              tension: 0.25,
+              spanGaps: true,
+              borderWidth: 2,
+              pointRadius: 3
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { boxWidth: 10, font: { size: 10 } } }
+          },
+          scales: {
+            y: { ticks: { font: { size: 10 } } },
+            x: { ticks: { font: { size: 10 } } }
+          }
+        }
+      });
+    }
+
+    function openEditModal(id) {
+      const r = state.records.find(item => item.id === id);
+      if (!r) return;
+      document.getElementById('edit-id').value = r.id;
+      document.getElementById('edit-datetime').value = r.datetime;
+      document.getElementById('edit-dose').value = r.dose;
+      document.getElementById('edit-weight').value = r.weight !== null ? r.weight : '';
+      document.getElementById('edit-spot').value = r.spot;
+      document.getElementById('edit-symptom').value = r.symptom || 'Nenhum';
+      document.getElementById('edit-notes').value = r.notes || '';
+
+      document.getElementById('edit-modal').classList.remove('hidden');
+      document.getElementById('edit-modal').classList.add('flex');
+    }
+
+    function closeEditModal() {
+      document.getElementById('edit-modal').classList.add('hidden');
+      document.getElementById('edit-modal').classList.remove('flex');
+    }
+
+    function saveEditRecord() {
+      const id = Number(document.getElementById('edit-id').value);
+      const idx = state.records.findIndex(item => item.id === id);
+      if (idx === -1) return;
+
+      const dt = document.getElementById('edit-datetime').value;
+      const dose = parseFloat(document.getElementById('edit-dose').value);
+      const weightVal = document.getElementById('edit-weight').value;
+      const { vialMg, vialMl } = state.settings;
+      const ml = (dose / vialMg) * vialMl;
+      const ui = Math.round(ml * 100);
+
+      state.records[idx] = {
+        ...state.records[idx],
+        datetime: dt,
+        dose,
+        ml: Number(ml.toFixed(2)),
+        ui,
+        spot: document.getElementById('edit-spot').value,
+        weight: weightVal ? parseFloat(weightVal) : null,
+        symptom: document.getElementById('edit-symptom').value,
+        notes: document.getElementById('edit-notes').value.trim()
+      };
+
+      state.records.sort((a, b) => new Date(b.datetime) - new Date(a.datetime));
+      saveState();
+      closeEditModal();
+    }
+
+    function deleteRecord(id) {
+      if (!confirm('Excluir este registro?')) return;
+      state.records = state.records.filter(r => r.id !== id);
+      saveState();
+    }
+
+    function updateStock(delta) {
+      state.stock = Math.max(0, state.stock + delta);
+      saveState();
+    }
+
+    function setCalcDose(mg) {
+      document.getElementById('calc-target-mg').value = mg;
+      calculateSyringe();
+    }
+
+    function calculateSyringe() {
+      const vialMg = parseFloat(document.getElementById('calc-vial-mg').value) || 15;
+      const vialMl = parseFloat(document.getElementById('calc-vial-ml').value) || 0.5;
+      const targetMg = parseFloat(document.getElementById('calc-target-mg').value) || 0;
+
+      const ml = (targetMg / vialMg) * vialMl;
+      const ui = Math.round(ml * 100);
+      const dosesPerVial = targetMg > 0 ? (vialMg / targetMg) : 0;
+
+      document.getElementById('res-ui').innerText = `${ui} UI`;
+      document.getElementById('res-ml').innerText = `(${ml.toFixed(2).replace('.', ',')} mL)`;
+      document.getElementById('res-doses-per-vial').innerText =
+        dosesPerVial >= 1
+          ? `Rende ${dosesPerVial.toFixed(1).replace('.0', '')} dose(s) por frasco`
+          : `Requer mais de 1 frasco por dose`;
+
+      const pct = Math.min(100, Math.max(0, ui));
+      document.getElementById('syringe-fill').style.width = pct + '%';
+    }
+
+    function fmtNum(v, unit = '') {
+      if (v === null || v === undefined || v === '') return '—';
+      return `${String(v).replace('.', ',')}${unit ? ' ' + unit : ''}`;
+    }
+
+    function renderAll() {
+      const { vialMg, vialMl, cycleDays } = state.settings;
+      const { name, age, welcomeDismissed } = state.profile;
+
+      const showWelcome = !name && !age && !welcomeDismissed;
+      document.getElementById('welcome-card').classList.toggle('hidden', !showWelcome);
+
+      const patientEl = document.getElementById('header-patient');
+      if (name || age) {
+        const parts = [];
+        if (name) parts.push(name);
+        if (age) parts.push(`${age} anos`);
+        patientEl.innerText = `👤 ${parts.join(' • ')}`;
+      } else {
+        patientEl.innerText = 'Toque em Perfil & Ajustes para adicionar seu nome';
+      }
+
+      document.getElementById('header-subtitle').innerText =
+        `Frasco: ${vialMg} mg / ${String(vialMl).replace('.', ',')} mL • Ciclo ${cycleDays}d`;
+      document.getElementById('cycle-days-label').innerText = `${cycleDays} dias`;
+      document.getElementById('vial-stock-display').innerText = `${state.stock} frasco(s)`;
+
+      if (state.records.length > 0) {
+        const last = state.records[0];
+        const lastDate = new Date(last.datetime);
+        const nextDate = new Date(lastDate.getTime() + cycleDays * 86400000);
+        const now = new Date();
+        const diffMs = nextDate - now;
+        const diffDays = Math.ceil(diffMs / 86400000);
+
+        if (diffDays > 1) {
+          document.getElementById('next-dose-countdown').innerText = `Em ${diffDays} dias`;
+        } else if (diffDays === 1) {
+          document.getElementById('next-dose-countdown').innerText = `Amanhã`;
+        } else if (diffDays === 0) {
+          document.getElementById('next-dose-countdown').innerText = `Hoje!`;
+        } else {
+          document.getElementById('next-dose-countdown').innerText = `Atrasada (${Math.abs(diffDays)}d)`;
+        }
+
+        document.getElementById('next-dose-date').innerText =
+          `Prevista para ${nextDate.toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: '2-digit' })} às ${nextDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`;
+
+        const elapsed = Math.max(0, now - lastDate);
+        const total = cycleDays * 86400000;
+        const pct = Math.min(100, Math.round((elapsed / total) * 100));
+        document.getElementById('cycle-progress').style.width = pct + '%';
+
+        document.getElementById('stat-last-dose').innerText = `${String(last.dose).replace('.', ',')} mg`;
+        document.getElementById('stat-last-ui').innerText = `${last.ui} UI (${String(last.ml).replace('.', ',')} mL)`;
+
+        const idx = SPOTS.indexOf(last.spot);
+        const nextSpot = idx >= 0 ? SPOTS[(idx + 1) % SPOTS.length] : SPOTS[0];
+        document.getElementById('suggested-spot').innerText = nextSpot;
+        document.getElementById('last-spot-info').innerText = `Última aplicação: ${last.spot}`;
+      } else {
+        document.getElementById('next-dose-countdown').innerText = 'Pronta para iniciar';
+        document.getElementById('next-dose-date').innerText = 'Registre a dose de hoje ou lance doses anteriores.';
+        document.getElementById('cycle-progress').style.width = '0%';
+        document.getElementById('stat-last-dose').innerText = '—';
+        document.getElementById('stat-last-ui').innerText = 'Sem registros';
+        document.getElementById('suggested-spot').innerText = state.selectedSpot;
+      }
+
+      const weightPts = getCombinedWeightSeries();
+      if (weightPts.length > 0) {
+        const latestW = weightPts[weightPts.length - 1].weight;
+        const firstW = weightPts[0].weight;
+        const diff = (latestW - firstW).toFixed(1);
+        document.getElementById('stat-weight').innerText = `${String(latestW).replace('.', ',')} kg`;
+        document.getElementById('stat-weight-diff').innerText =
+          weightPts.length > 1 ? `${diff > 0 ? '+' : ''}${String(diff).replace('.', ',')} kg no total` : 'Peso inicial registrado';
+      } else {
+        document.getElementById('stat-weight').innerText = '—';
+        document.getElementById('stat-weight-diff').innerText = 'Sem registros';
+      }
+
+      const latestMeasureEntry = [...state.checkins].find(
+        c => c.waist !== null || c.abdomen !== null || c.hip !== null || c.arm !== null
+      );
+      if (latestMeasureEntry) {
+        document.getElementById('panel-measures-date').innerText = `Avaliação em ${formatShortDate(latestMeasureEntry.date)}`;
+        document.getElementById('m-waist-latest').innerText = fmtNum(latestMeasureEntry.waist, 'cm');
+        document.getElementById('m-abdomen-latest').innerText = fmtNum(latestMeasureEntry.abdomen, 'cm');
+        document.getElementById('m-hip-latest').innerText = fmtNum(latestMeasureEntry.hip, 'cm');
+        document.getElementById('m-arm-latest').innerText = fmtNum(latestMeasureEntry.arm, 'cm');
+      } else {
+        document.getElementById('panel-measures-date').innerText = 'Nenhuma medida registrada';
+        ['m-waist-latest', 'm-abdomen-latest', 'm-hip-latest', 'm-arm-latest'].forEach(id => {
+          document.getElementById(id).innerText = '—';
+        });
+      }
+
+      const cList = document.getElementById('checkin-list');
+      if (state.checkins.length === 0) {
+        cList.innerHTML = `<div class="bg-white rounded-2xl p-4 text-center text-xs text-slate-400 border border-slate-100">Nenhum peso semanal ou medida cadastrada ainda.</div>`;
+      } else {
+        cList.innerHTML = state.checkins.map(c => {
+          const measuresBadges = [
+            c.waist !== null ? `Cintura: ${fmtNum(c.waist, 'cm')}` : null,
+            c.abdomen !== null ? `Abdômen: ${fmtNum(c.abdomen, 'cm')}` : null,
+            c.hip !== null ? `Quadril: ${fmtNum(c.hip, 'cm')}` : null,
+            c.arm !== null ? `Braço: ${fmtNum(c.arm, 'cm')}` : null
+          ].filter(Boolean);
+
+          return `
+            <div class="bg-white rounded-2xl p-3.5 shadow-sm border border-slate-100 flex justify-between items-start gap-2">
+              <div class="space-y-1">
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-bold text-slate-800">${formatShortDate(c.date)}</span>
+                  ${c.weight !== null ? `<span class="text-xs font-bold bg-teal-50 text-teal-800 px-2 py-0.5 rounded-full">⚖️ ${fmtNum(c.weight, 'kg')}</span>` : ''}
+                </div>
+                ${measuresBadges.length ? `<p class="text-[11px] text-slate-600">${measuresBadges.join(' • ')}</p>` : ''}
+                ${c.notes ? `<p class="text-[11px] text-slate-400 italic">"${c.notes}"</p>` : ''}
+              </div>
+              <button onclick="deleteCheckIn(${c.id})" class="text-xs text-rose-500 hover:text-rose-700 px-2 py-1">Excluir</button>
+            </div>
+          `;
+        }).join('');
+      }
+
+      document.getElementById('history-count').innerText = `${state.records.length} registro(s) salvo(s)`;
+      const list = document.getElementById('history-list');
+      if (state.records.length === 0) {
+        list.innerHTML = `<div class="bg-white rounded-2xl p-6 text-center text-xs text-slate-400 border border-slate-100">Nenhuma aplicação registrada ainda.</div>`;
+      } else {
+        list.innerHTML = state.records.map((r, index) => {
+          const d = new Date(r.datetime);
+          const dateStr = d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+          const doseNum = state.records.length - index;
+          return `
+            <div class="bg-white rounded-2xl p-4 shadow-sm border border-slate-100 flex justify-between items-start">
+              <div class="space-y-1">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="text-[10px] font-bold bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md">#${doseNum}</span>
+                  <span class="font-bold text-sm text-teal-800">${String(r.dose).replace('.', ',')} mg</span>
+                  <span class="text-xs bg-teal-50 text-teal-700 px-2 py-0.5 rounded-full">${r.ui} UI</span>
+                  <span class="text-xs text-slate-400">${dateStr}</span>
+                </div>
+                <p class="text-xs text-slate-700 font-medium">📍 ${r.spot}</p>
+                <div class="flex flex-wrap gap-2 text-[11px] text-slate-500">
+                  ${r.weight ? `<span>⚖️ ${String(r.weight).replace('.', ',')} kg</span>` : ''}
+                  ${r.symptom && r.symptom !== 'Nenhum' ? `<span>🩺 ${r.symptom}</span>` : ''}
+                </div>
+                ${r.notes ? `<p class="text-[11px] text-slate-400 italic">"${r.notes}"</p>` : ''}
+              </div>
+              <div class="flex flex-col items-end gap-1">
+                <button onclick="openEditModal(${r.id})" class="text-xs text-teal-700 hover:text-teal-900 px-2 py-1">✏️ Editar</button>
+                <button onclick="deleteRecord(${r.id})" class="text-xs text-rose-500 hover:text-rose-700 px-2 py-1">Excluir</button>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      if (!document.getElementById('view-evolucao').classList.contains('hidden')) {
+        renderCharts();
+      }
+    }
+
+    function openSettings() {
+      document.getElementById('set-patient-name').value = state.profile.name || '';
+      document.getElementById('set-patient-age').value = state.profile.age || '';
+      document.getElementById('set-vial-mg').value = state.settings.vialMg;
+      document.getElementById('set-vial-ml').value = state.settings.vialMl;
+      document.getElementById('set-cycle-days').value = state.settings.cycleDays;
+      document.getElementById('settings-modal').classList.remove('hidden');
+      document.getElementById('settings-modal').classList.add('flex');
+    }
+
+    function closeSettings() {
+      document.getElementById('settings-modal').classList.add('hidden');
+      document.getElementById('settings-modal').classList.remove('flex');
+    }
+
+    function saveSettings() {
+      state.profile.name = document.getElementById('set-patient-name').value.trim();
+      state.profile.age = document.getElementById('set-patient-age').value.trim();
+      state.profile.welcomeDismissed = true;
+      state.settings.vialMg = parseFloat(document.getElementById('set-vial-mg').value) || 15;
+      state.settings.vialMl = parseFloat(document.getElementById('set-vial-ml').value) || 0.5;
+      state.settings.cycleDays = parseInt(document.getElementById('set-cycle-days').value) || 7;
+      document.getElementById('calc-vial-mg').value = state.settings.vialMg;
+      document.getElementById('calc-vial-ml').value = state.settings.vialMl;
+      calculateSyringe();
+      saveState();
+      closeSettings();
+    }
+
+    function exportData() {
+      const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const slug = state.profile.name ? state.profile.name.toLowerCase().replace(/[^a-z0-9]/g, '-') + '-' : '';
+      a.download = `tirzecare-${slug}backup-${new Date().toISOString().slice(0,10)}.json`;
+      a.click();
+    }
+
+    function importData(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try {
+          const parsed = JSON.parse(ev.target.result);
+          const base = getCleanTemplate();
+          state = {
+            ...base,
+            ...parsed,
+            profile: { ...base.profile, ...(parsed.profile || {}) },
+            settings: { ...base.settings, ...(parsed.settings || {}) },
+            records: Array.isArray(parsed.records) ? parsed.records : [],
+            checkins: Array.isArray(parsed.checkins) ? parsed.checkins : []
+          };
+          saveState();
+          alert('Backup restaurado com sucesso!');
+        } catch (err) {
+          alert('Arquivo inválido.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+    loadState();
+    calculateSyringe();
+  </script>
+</body>
+</html>
